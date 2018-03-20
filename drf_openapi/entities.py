@@ -15,7 +15,7 @@ from rest_framework.pagination import PageNumberPagination, LimitOffsetPaginatio
 from rest_framework.schemas import SchemaGenerator
 from rest_framework.schemas.generators import insert_into, distribute_links, LinkNode
 from rest_framework.schemas.inspectors import get_pk_description, field_to_schema
-
+import copy
 from drf_openapi.codec import _get_parameters
 
 class PaginatedListSerializer:
@@ -390,28 +390,39 @@ class OpenApiSchemaGenerator(SchemaGenerator):
 
         return fields
 
+    def remove_write_only_fields(self, field):
+        if isinstance(field, serializers.ListSerializer):
+            fields = [key for key, value in field.child.fields.items() if value.write_only]
+            for field_name in fields:
+                field.child.fields.pop(field_name)
+
+            for sub_field in field.child.fields:
+                self.remove_write_only_fields(sub_field)
+
+
+
     def get_response_object(self, response_serializer_class, description):
 
         fields = []
         serializer = response_serializer_class()
         nested_obj = {}
-
+        # I copied the serializer so I will be able to alter and not to affect other behaviours
+        serializer = copy.deepcopy(serializer)
         for field in serializer.fields.values():
+            self.remove_write_only_fields(field)
+
             # we don't want to render write only fields in the response
             if field.write_only:
-               continue
-
+                continue
             # If field is a serializer, attempt to get its schema.
             if isinstance(field, serializers.Serializer):
                 subfield_schema = self.get_response_object(field.__class__, None)[0].get('schema')
-
                 # If the schema exists, use it as the nested_obj
                 if subfield_schema is not None:
                     nested_obj[field.field_name] = subfield_schema
                     nested_obj[field.field_name]['description'] = field.help_text
                     continue
-
-            # Otherwise, carry-on and use the field's schema.
+            # Otherwise, carry-on and use the field's schema.get_filter_fields
             fallback_schema = self.fallback_schema_from_field(field)
             fields.append(Field(
                 name=field.field_name,
@@ -419,9 +430,7 @@ class OpenApiSchemaGenerator(SchemaGenerator):
                 required=field.required,
                 schema=fallback_schema if fallback_schema else field_to_schema(field),
             ))
-
         res = _get_parameters(Link(fields=fields), None)
-
         if not res:
             if nested_obj:
                 return {
@@ -447,7 +456,6 @@ class OpenApiSchemaGenerator(SchemaGenerator):
 
         for status_code, description in getattr(response_meta, 'error_status_codes', {}).items():
             error_status_codes[status_code] = {'description': description}
-
         return response_schema, error_status_codes
 
 
