@@ -18,6 +18,8 @@ from rest_framework.schemas.inspectors import get_pk_description, field_to_schem
 
 from drf_openapi.codec import _get_parameters
 
+class PaginatedListSerializer:
+    pass
 
 class VersionedSerializers:
     """Adapted from https://github.com/avanov/Rhetoric/ :)
@@ -198,14 +200,12 @@ class OpenApiSchemaGenerator(SchemaGenerator):
                 description = description + '\n\n**Response Description:**\n' + res_doc
             response_serializer_class = response_serializer_class.get(version)
 
-        if not response_serializer_class and method_name in ('list', 'retrieve'):
-            if hasattr(view, 'get_serializer_class'):
-                response_serializer_class = view.get_serializer_class()
-            elif hasattr(view, 'serializer_class'):
-                response_serializer_class = view.serializer_class
-            if response_serializer_class and method_name == 'list':
-                response_serializer_class = self.get_paginator_serializer(
-                    view, response_serializer_class)
+        if response_serializer_class and issubclass(response_serializer_class, PaginatedListSerializer):
+            response_serializer_class = self._default_response_class("list", view)
+
+
+        if  response_serializer_class is None:
+            response_serializer_class = self._default_response_class(method_name, view)
         response_schema, error_status_codes = self.get_response_object(
             response_serializer_class, method_func.__doc__) if response_serializer_class else ({}, {})
 
@@ -218,6 +218,19 @@ class OpenApiSchemaGenerator(SchemaGenerator):
             fields=fields,
             description=description
         )
+
+    def _default_response_class(self, method_name, view):
+        response_serializer_class = None
+        if method_name in ('list', 'retrieve'):
+            if hasattr(view, 'get_serializer_class'):
+                response_serializer_class = view.get_serializer_class()
+            elif hasattr(view, 'serializer_class'):
+                response_serializer_class = view.serializer_class
+            if response_serializer_class and method_name == 'list':
+                response_serializer_class = self.get_paginator_serializer(view, response_serializer_class)
+        return response_serializer_class
+
+
 
     def get_paginator_serializer(self, view, child_serializer_class):
         class BaseFakeListSerializer(serializers.Serializer):
