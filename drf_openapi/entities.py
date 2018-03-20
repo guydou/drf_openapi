@@ -88,7 +88,7 @@ class VersionedSerializers:
 class OpenApiSchemaGenerator(SchemaGenerator):
     def __init__(self, version, actions=None, title=None, url=None, description=None, patterns=None, urlconf=None):
         self.version = version
-        self.actions = None
+        self.actions = actions
         super(OpenApiSchemaGenerator, self).__init__(title, url, description, patterns, urlconf)
 
     def get_schema(self, request=None, public=False):
