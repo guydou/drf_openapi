@@ -397,6 +397,10 @@ class OpenApiSchemaGenerator(SchemaGenerator):
         nested_obj = {}
 
         for field in serializer.fields.values():
+            # we don't want to render write only fields in the response
+            if field.write_only:
+               continue
+
             # If field is a serializer, attempt to get its schema.
             if isinstance(field, serializers.Serializer):
                 subfield_schema = self.get_response_object(field.__class__, None)[0].get('schema')
