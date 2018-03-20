@@ -84,8 +84,9 @@ class VersionedSerializers:
 
 
 class OpenApiSchemaGenerator(SchemaGenerator):
-    def __init__(self, version, title=None, url=None, description=None, patterns=None, urlconf=None):
+    def __init__(self, version, actions=None, title=None, url=None, description=None, patterns=None, urlconf=None):
         self.version = version
+        self.actions = None
         super(OpenApiSchemaGenerator, self).__init__(title, url, description, patterns, urlconf)
 
     def get_schema(self, request=None, public=False):
@@ -108,6 +109,7 @@ class OpenApiSchemaGenerator(SchemaGenerator):
             url=url, content=links
         )
 
+
     def get_links(self, request=None):
         """
         Return a dictionary containing all the links that should be
@@ -122,6 +124,16 @@ class OpenApiSchemaGenerator(SchemaGenerator):
             view = self.create_view(callback, method, request)
             if getattr(view, 'exclude_from_schema', False):
                 continue
+
+            action = None
+            if hasattr(view, "action"):
+                action = view.action
+            # In case actions is defined we want to render only actions in the actions list
+            if self.actions is not None and action not in self.actions:
+                continue
+
+
+
             path = self.coerce_path(path, method, view)
             paths.append(path)
             view_endpoints.append((path, method, view))
