@@ -347,9 +347,9 @@ class OpenApiSchemaGenerator(SchemaGenerator):
         else:
             location = 'query'
 
-       method_name = getattr(view, 'action', method.lower())
-       # I don't see reason to return the serializers fields in other actions
-       if method_name not in ['update', 'create']:
+        method_name = getattr(view, 'action', method.lower())
+        # I don't see reason to return the serializers fields in other actions
+        if method_name not in ['update', 'create']:
            return []
 
         serializer_class = self.get_serializer_class(view, method_func)
